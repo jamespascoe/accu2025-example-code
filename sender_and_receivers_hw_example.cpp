@@ -1,94 +1,63 @@
-#include <cstdint>
-#include <cstdlib>
+#include <boost/asio.hpp>
+#include <boost/bind/bind.hpp>
 #include <stdexec/execution.hpp>
 #include <exec/task.hpp>
-#include <exec/into_tuple.hpp>
-
-/// Old-style async C API with a callback (like Win32's ReadFileEx)
-using handle_t = std::uintptr_t;
-constexpr handle_t invalid_handle = -1u;
-
-constexpr unsigned OK = 0;
-constexpr unsigned READ = 1;
-constexpr unsigned WRITE = 2;
-
-struct overlapped {};
-using overlapped_callback = void(int status, int bytes, overlapped* user);
-int get_overlapped_result(overlapped*);
-
-handle_t open_file(char const* name, int mode) {
-  std::printf("Opening file: %s in mode %d\n", name, mode);
-  return 0;
-};
-
-int read_file(handle_t, char* buffer, int bytes, overlapped*, overlapped_callback* pfn) {
-  std::printf("Reading %d bytes from file\n", bytes);
-  return OK;
-};
-
 
 using namespace stdexec::tags;
 
-struct immovable {
-  immovable() = default;
-  immovable(immovable&&) = delete;
-};
+namespace asio = boost::asio;
 
-/// A sender that wraps the C-style API that can then be passed to
-/// generic algorithms.
 template <class Receiver>
-struct operation : overlapped, immovable {
-  handle_t file;
-  char* buffer;
-  int size;
+struct timer_operation {
+  asio::io_context& io;
+  int num_secs;
+  asio::steady_timer timer;
   Receiver rcvr;
 
-  static void callback(int status, int bytes, overlapped* user) {
-    operation* op = static_cast<operation*>(user);
-    if (status != OK)
-      stdexec::set_error(std::move(op->rcvr), status);
+  static void callback(const boost::system::error_code& error, int num_secs, Receiver& rcvr)
+  {
+    std::printf("Finished timer for %d seconds\n", num_secs);
+    if (error != boost::system::errc::success)
+      stdexec::set_error(std::move(rcvr), error);
     else
-      stdexec::set_value(std::move(op->rcvr), bytes, op->buffer);
+      stdexec::set_value(std::move(rcvr), 0);
   }
 
-  STDEXEC_MEMFN_DECL(void start)(this operation& self) noexcept {
-    int status = read_file(self.file, self.buffer, self.size, &self, &callback);
-    if (status != OK)
-      stdexec::set_error(std::move(self.rcvr), status);
+  STDEXEC_MEMFN_DECL(void start)(this timer_operation& self) noexcept {
+    self.timer.async_wait(boost::bind(callback, boost::asio::placeholders::error, self.num_secs, self.rcvr));
+    std::printf("Running\n");
+    self.io.run();
   }
 };
 
-struct read_sender {
+struct timer_sender {
   using sender_concept = stdexec::sender_t;
 
   using completion_signatures =
     stdexec::completion_signatures<
-      stdexec::set_value_t(int, char*),
+      stdexec::set_value_t(int),
       stdexec::set_error_t(int)>;
 
-  STDEXEC_MEMFN_DECL(auto connect)(this read_sender self, stdexec::receiver auto rcvr) {
-    return operation{{}, {}, self.file, self.buffer, self.size, std::move(rcvr)};
+  STDEXEC_MEMFN_DECL(auto connect)(this timer_sender self, stdexec::receiver auto rcvr) {
+    asio::steady_timer timer(self.io, asio::chrono::seconds(self.num_secs));
+
+    std::printf("setup done for %d seconds\n", self.num_secs);
+    return timer_operation{self.io, self.num_secs, std::move(timer), std::move(rcvr)};
   };
 
-  handle_t file;
-  char* buffer;
-  int size;
+  asio::io_context& io;
+  int num_secs;
 };
 
-read_sender async_read(handle_t file, char* buffer, int size) {
-  return {file, buffer, size};
-}
-
-exec::task<void> co_read_some(handle_t file, char* buffer, int size) {
-  auto [bytes, buff] = co_await async_read(file, buffer, size);
+timer_sender async_timer(asio::io_context& io, int num_secs) {
+  return {io, num_secs};
 }
 
 int main() {
 
-  std::vector<char> data(256);
-
-  auto file = open_file("hello.txt", READ);
-  auto task = async_read(0, data.data(), data.size());
-
-  auto [size, buffer] = stdexec::sync_wait(task).value();
+  asio::io_context io;
+  auto task_timer_1 = async_timer(io, 5);
+  auto task_timer_2 = async_timer(io, 1);
+//  auto task = stdexec::when_all(task_timer_2, task_timer_1);
+  auto ret = stdexec::sync_wait(task_timer_2).value();
 }

@@ -18,6 +18,18 @@ CPMAddPackage(
 
 set (STDEXEC_BUILD_TESTS OFF)
 
-add_executable(hw_example sender_and_receivers_hw_example.cpp)
+set(THREADS_PREFER_PTHREAD_FLAG ON)
+find_package(Threads REQUIRED)
+find_package(Boost)
 
-target_link_libraries(hw_example STDEXEC::stdexec)
+if(Boost_FOUND)
+    include_directories(${Boost_INCLUDE_DIRS})
+
+    add_executable(orig_example orig_example.cpp)
+    add_executable(hw_example sender_and_receivers_hw_example.cpp)
+
+    target_link_libraries(orig_example STDEXEC::stdexec)
+    target_link_libraries(hw_example STDEXEC::stdexec)
+    target_link_libraries(hw_example Threads::Threads)
+    target_link_libraries(hw_example ${Boost_LIBRARIES})
+endif()
