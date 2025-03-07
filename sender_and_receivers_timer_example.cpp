@@ -56,8 +56,6 @@ timer_sender async_timer(asio::io_context& io, int num_secs) {
 int main() {
 
   asio::io_context io;
-  auto task_timer_1 = async_timer(io, 5);
-  auto task_timer_2 = async_timer(io, 1);
-//  auto task = stdexec::when_all(task_timer_2, task_timer_1);
-  auto ret = stdexec::sync_wait(task_timer_2).value();
+  auto task_timer = async_timer(io, 5);
+  auto ret = stdexec::sync_wait(task_timer).value();
 }
