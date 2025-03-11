@@ -25,7 +25,7 @@ find_package(Boost)
 if(Boost_FOUND)
     include_directories(${Boost_INCLUDE_DIRS})
 
-    add_executable(timer_example sender_and_receivers_timer_example.cpp)
+    add_executable(timer_example sender_and_receivers_timer.cpp)
 
     target_link_libraries(timer_example STDEXEC::stdexec)
     target_link_libraries(timer_example Threads::Threads)
