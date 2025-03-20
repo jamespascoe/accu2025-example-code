@@ -16,7 +16,7 @@ struct timer_op {
 
   static void callback(const boost::system::error_code& error, int n_secs, Receiver& rcvr)
   {
-    std::printf("Finished timer for %d seconds\n", n_secs);
+    std::printf("Finished %d second timer\n", n_secs);
     if (error != boost::system::errc::success)
       stdexec::set_error(std::move(rcvr), error);
     else
@@ -41,7 +41,7 @@ struct timer_sender {
   STDEXEC_MEMFN_DECL(auto connect)(this timer_sender self, stdexec::receiver auto rcvr) {
     asio::steady_timer timer(self.io, asio::chrono::seconds(self.n_secs));
 
-    std::printf("setup done for %d seconds\n", self.n_secs);
+    std::printf("Setup done for %d second timer\n", self.n_secs);
     return timer_op{self.io, self.n_secs, std::move(timer), std::move(rcvr)};
   };
 
@@ -57,5 +57,9 @@ int main() {
   asio::io_context io;
 
   auto task_timer = async_timer(io, 5);
-  auto ret = stdexec::sync_wait(task_timer).value();
+  auto print_ret_val = stdexec::then(task_timer, [](int n)
+        {
+          std::printf("Return value: %d\n", n);
+        });
+  auto ret = stdexec::sync_wait(print_ret_val).value();
 }
