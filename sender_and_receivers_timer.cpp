@@ -23,10 +23,10 @@ struct timer_op {
       stdexec::set_value(std::move(rcvr), 0);
   }
 
-  STDEXEC_MEMFN_DECL(void start)(this timer_op& self) noexcept {
-    self.timer.async_wait(boost::bind(callback, boost::asio::placeholders::error, self.n_secs, self.rcvr));
+  void start() noexcept {
+    timer.async_wait(boost::bind(callback, boost::asio::placeholders::error, n_secs, rcvr));
     std::printf("Running\n");
-    self.io.run();
+    io.run();
   }
 };
 
@@ -38,11 +38,11 @@ struct timer_sender {
       stdexec::set_value_t(int),
       stdexec::set_error_t(int)>;
 
-  STDEXEC_MEMFN_DECL(auto connect)(this timer_sender self, stdexec::receiver auto rcvr) {
-    asio::steady_timer timer(self.io, asio::chrono::seconds(self.n_secs));
+  auto connect(stdexec::receiver auto rcvr) {
+    asio::steady_timer timer(io, asio::chrono::seconds(n_secs));
 
-    std::printf("Setup done for %d second timer\n", self.n_secs);
-    return timer_op{self.io, self.n_secs, std::move(timer), std::move(rcvr)};
+    std::printf("Setup done for %d second timer\n", n_secs);
+    return timer_op{io, n_secs, std::move(timer), std::move(rcvr)};
   };
 
   asio::io_context& io;
