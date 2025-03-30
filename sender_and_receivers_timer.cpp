@@ -41,7 +41,8 @@ struct timer_sender {
   auto connect(stdexec::receiver auto rcvr) {
     asio::steady_timer timer(io, asio::chrono::seconds(n_secs));
 
-    std::printf("Setup done for %d second timer\n", n_secs);
+    std::printf("Created %d second timer\n", n_secs);
+
     return timer_op{io, n_secs, std::move(timer), std::move(rcvr)};
   };
 
@@ -61,5 +62,5 @@ int main() {
         {
           std::printf("Return value: %d\n", n);
         });
-  auto ret = stdexec::sync_wait(print_ret_val).value();
+  stdexec::sync_wait(print_ret_val);
 }
