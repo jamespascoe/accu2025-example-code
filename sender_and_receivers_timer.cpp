@@ -1,3 +1,4 @@
+#include <system_error>
 #include <boost/asio.hpp>
 #include <boost/bind/bind.hpp>
 #include <stdexec/execution.hpp>
@@ -36,7 +37,7 @@ struct timer_sender {
   using completion_signatures =
     stdexec::completion_signatures<
       stdexec::set_value_t(int),
-      stdexec::set_error_t(int)>;
+      stdexec::set_error_t(std::error_code)>;
 
   auto connect(stdexec::receiver auto rcvr) {
     asio::steady_timer timer(io, asio::chrono::seconds(n_secs));
